@@ -12,7 +12,7 @@ This project allows you to securely control a music player on a Raspberry Pi usi
 
 -   A Raspberry Pi with Bluetooth enabled.
 -   Python 3.
--   A command-line music player like `mpd` and `mpc` installed and configured on the Raspberry Pi.
+-   `mpv` media player installed on the Raspberry Pi.
 -   A second device with Bluetooth to act as the client.
 
 ## Setup
@@ -34,12 +34,17 @@ This project allows you to securely control a music player on a Raspberry Pi usi
     sudo apt-get install bluetooth libbluetooth-dev build-essential
     ```
 
-3.  **Install Music Player Daemon (MPD):**
-    On your Raspberry Pi, install `mpd` and `mpc`:
-    ```bash
-    sudo apt-get install mpd mpc
-    ```
-    You will need to configure `mpd`.
+3.  **Install mpv:**
+    On your Raspberry Pi, install `mpv`. The command depends on your Linux distribution.
+
+    -   For **Debian-based systems** (like Raspberry Pi OS):
+        ```bash
+        sudo apt-get install mpv
+        ```
+    -   For **Fedora:**
+        ```bash
+        sudo dnf install mpv
+        ```
 
 4.  **Generate PQC Keys:**
     Run the key generation script to create a public and private key pair.
@@ -70,4 +75,4 @@ This project allows you to securely control a music player on a Raspberry Pi usi
     ```
 
 3.  **Send commands:**
-    Once connected, you can type commands like `play`, `pause`, `next`, etc. The client will automatically sign the commands before sending them.
+    Once connected, you can type commands like `play`, `pause`, `next`, etc. The client will automatically sign the commands before sending them. You can also load a file for playback with `load /path/to/media.mp3`.

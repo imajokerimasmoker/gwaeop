@@ -25,26 +25,63 @@ def load_public_key():
         print("Please generate keys and place the public key in the same directory as the server script.")
         return None
 
-def run_command(command):
-    """Executes a command using mpc."""
+import socket
+import tempfile
+import os
+
+MPV_SOCKET_PATH = os.path.join(tempfile.gettempdir(), "mpv_socket")
+
+def send_mpv_command(command_obj):
+    """Sends a command to the mpv IPC socket."""
     try:
-        allowed_commands = ["play", "pause", "stop", "next", "prev", "volume"]
-        cmd_part = command.split(" ")[0]
-
-        if cmd_part not in allowed_commands:
-            return f"Command not allowed: {command}"
-
-        full_command = f"mpc {command}"
-        print(f"Executing: {full_command}")
-        result = subprocess.run(full_command, shell=True, capture_output=True, text=True, check=True)
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        return f"Error: {e.stderr.strip()}"
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.connect(MPV_SOCKET_PATH)
+            s.sendall(json.dumps(command_obj).encode('utf-8') + b'\n')
+            response = s.recv(1024)
+            return json.loads(response.decode('utf-8'))
     except Exception as e:
-        return f"An unexpected error occurred: {e}"
+        print(f"Error communicating with mpv: {e}")
+        return {"error": str(e)}
+
+def run_command(command):
+    """Executes a command using mpv."""
+    parts = command.split(" ", 1)
+    cmd = parts[0]
+
+    command_map = {
+        "play": ["set_property", "pause", False],
+        "pause": ["set_property", "pause", True],
+        "stop": ["stop"],
+        "next": ["playlist-next"],
+        "prev": ["playlist-prev"],
+    }
+
+    if cmd in command_map:
+        response = send_mpv_command({"command": command_map[cmd]})
+    elif cmd == "volume" and len(parts) > 1:
+        try:
+            level = int(parts[1])
+            response = send_mpv_command({"command": ["set_property", "volume", level]})
+        except (ValueError, IndexError):
+            response = {"error": "Invalid volume level"}
+    elif cmd == "load" and len(parts) > 1:
+        response = send_mpv_command({"command": ["loadfile", parts[1]]})
+    else:
+        response = {"error": "Unknown command"}
+
+    return json.dumps(response)
+
 
 def start_server(public_key):
     """Starts the Bluetooth server and listens for signed commands."""
+    # Start mpv in the background
+    subprocess.Popen(
+        ["mpv", "--idle", f"--input-ipc-server={MPV_SOCKET_PATH}"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    print(f"mpv started with IPC socket at {MPV_SOCKET_PATH}")
+
     server_sock = BluetoothSocket(RFCOMM)
     server_sock.bind(("", PORT_ANY))
     server_sock.listen(1)
